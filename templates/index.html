@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assfai - ADOFAI 谱面助手</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div id="app">
+        <!-- 工具栏 -->
+        <div id="toolbar">
+            <span style="font-weight:700;font-size:15px;color:var(--accent)">🎵 Assfai</span>
+            <span id="toolbar-level-info" class="level-info">
+                <span class="label">未加载关卡</span>
+            </span>
+            <button class="btn" id="btn-load-level">📂 加载关卡</button>
+            <button class="btn btn-icon-only" id="btn-settings" title="设置">⚙</button>
+            <span id="api-key-indicator"><span class="dot missing"></span> API Key</span>
+        </div>
+
+        <!-- 主体 -->
+        <div id="main">
+            <!-- 侧边栏 -->
+            <div id="sidebar">
+                <div class="sidebar-header">
+                    <h2>会话列表</h2>
+                    <button class="btn-new" id="btn-new-session" title="新建会话">+</button>
+                </div>
+                <div id="session-list">
+                    <div class="empty-state">
+                        <div class="icon">💬</div>
+                        <div class="text">暂无会话</div>
+                        <div class="hint">点击 + 新建会话</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 聊天区 -->
+            <div id="chat-area">
+                <div id="chat-header" style="display:none">
+                    <span class="chat-title">对话</span>
+                    <button class="btn-undo" id="btn-undo" disabled style="display:none">↩ 撤回 (0)</button>
+                </div>
+                <div id="chat-messages">
+                    <div class="empty-state">
+                        <div class="icon">🎵</div>
+                        <div class="text">选择一个会话或创建新会话</div>
+                        <div class="hint">加载 .adofai 文件后即可与 AI 对话</div>
+                    </div>
+                </div>
+                <div id="chat-input-area" style="display:none">
+                    <form id="chat-form">
+                        <input type="text" id="chat-input" placeholder="输入消息，例如：把 BPM 改成 180，在第 5 个 tile 添加 SetSpeed 事件..."
+                            autocomplete="off">
+                        <button type="submit" id="send-btn">发送</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 设置弹窗 -->
+    <div class="modal-overlay" id="settings-modal" style="display:none">
+        <div class="modal">
+            <h3>⚙ 设置</h3>
+            <div class="error-msg" id="settings-error" style="display:none"></div>
+            <div id="settings-key-status" style="font-size:12px;margin-bottom:10px;color:var(--text-muted)"></div>
+            <label style="display:block;margin-bottom:4px;font-size:12px;color:var(--text-muted)">DeepSeek API Key</label>
+            <input type="password" id="settings-api-key-input" placeholder="sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                style="font-family:monospace">
+            <div class="modal-actions">
+                <button class="btn" onclick="closeSettingsModal()">取消</button>
+                <button class="btn btn-primary" id="btn-save-api-key">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
