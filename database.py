@@ -137,6 +137,33 @@ def get_messages(session_id):
         messages.append(msg)
     return messages
 
+def get_recent_messages(session_id, limit=50):
+    """获取最近的 N 条消息（按时间正序返回）"""
+    conn = _get_conn()
+    rows = conn.execute(
+        "SELECT id, session_id, role, content, tool_calls, timestamp FROM messages WHERE session_id = ? ORDER BY id DESC LIMIT ?",
+        (session_id, limit)
+    ).fetchall()
+    conn.close()
+    messages = []
+    for row in reversed(rows):
+        msg = {
+            "id": row["id"],
+            "session_id": row["session_id"],
+            "role": row["role"],
+            "content": row["content"],
+            "timestamp": row["timestamp"]
+        }
+        if row["tool_calls"]:
+            try:
+                msg["tool_calls"] = json.loads(row["tool_calls"])
+            except json.JSONDecodeError:
+                msg["tool_calls"] = None
+        else:
+            msg["tool_calls"] = None
+        messages.append(msg)
+    return messages
+
 def push_operation(session_id, undo_data):
     conn = _get_conn()
     row = conn.execute(

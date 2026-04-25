@@ -7,15 +7,31 @@ from module_lg import get_logger
 
 logger = get_logger("智能体")
 
-KNOWLEDGE_PATH = os.path.join(os.path.dirname(__file__), "knowledge", "dictionary.md")
+KNOWLEDGE_DIR = os.path.join(os.path.dirname(__file__), "afgitbook", "english")
 
 def _load_knowledge():
-    try:
-        with open(KNOWLEDGE_PATH, "r", encoding="utf-8") as f:
-            return f.read()
-    except Exception:
-        logger.warning("无法加载 ADOFAI 知识库")
+    parts = []
+    base = KNOWLEDGE_DIR
+    if not os.path.isdir(base):
+        logger.warning(f"ADOFAI 文档目录不存在: {base}")
         return ""
+    for root, dirs, files in os.walk(base):
+        for fname in sorted(files):
+            if not fname.endswith(".md"):
+                continue
+            fpath = os.path.join(root, fname)
+            rel = os.path.relpath(fpath, base)
+            try:
+                with open(fpath, "r", encoding="utf-8") as f:
+                    content = f.read().strip()
+                parts.append(f"===== {rel} =====\n{content}")
+            except Exception as e:
+                logger.warning(f"读取文档 {rel} 失败: {e}")
+    if not parts:
+        logger.warning("ADOFAI 文档目录为空")
+        return ""
+    logger.info(f"已加载 {len(parts)} 个 ADOFAI 文档文件")
+    return "\n\n".join(parts)
 
 KNOWLEDGE_TEXT = _load_knowledge()
 
@@ -42,10 +58,12 @@ SYSTEM_PROMPT = f"""你是一名 ADOFAI（冰与火之舞）谱面制作助手�
 - 每次只进行必要的操作，不要做多余的修改
 - 修改数据前先确认当前值
 - 如果用户要求不明确，先问清楚再操作
-- **如果遇到不理解的术语或概念，不要瞎猜，而是查询知识库中提供的 ADOFAI 文档索引来获取正确信息**
+- **如果遇到不理解的术语或概念，不要瞎猜，而是查阅下方提供的 ADOFAI 官方完整文档来获取准确信息**
 - 如果用户提到的功能你不确定如何实现，告诉用户查阅相关官方文档
+- 官方文档中有对每个事件的属性说明，在关卡文件中，这些属性以驼峰式命名法表示，例如：
+    - MoveTrack在文档中有"Position offset"属性，而在关卡文件中则是"positionOffset"
 
-以下是 ADOFAI 官方文档索引供你参考,这份文档内包含链接跳转,需要使用联网搜索工具查看详细内容:
+以下是 ADOFAI 官方完整文档内容，供你随时查阅。如果你遇到不理解的术语、事件类型、参数含义等，直接在这份文档中搜索即可找到准确答案，不要猜测：
 {KNOWLEDGE_TEXT}"""
 
 TOOLS = [
@@ -358,14 +376,89 @@ TOOLS = [
                 "required": []
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "edit_angledata",
+            "description": "在 angleData 的指定位置插入新的轨道角度数据。index 为插入位置（从 0 开始），part 为要插入的角度值列表",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "index": {"type": "integer", "description": "插入位置索引（从 0 开始），新的轨道会插入到 angleData 的第 index 个位置"},
+                    "part": {
+                        "type": "array",
+                        "items": {"type": "number"},
+                        "description": "要插入的轨道角度数据列表，如 [0, 180, 0]"
+                    }
+                },
+                "required": ["index", "part"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_angledata",
+            "description": "读取 angleData（轨道角度数据）的指定片段。angleData 是包含所有砖块角度信息的列表，索引从 0 开始计数：第 1 个砖块的索引为 0，第 2 个砖块的索引为 1，以此类推。不填参数返回所有砖块的 angleData",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "start": {"type": "integer", "description": "起始砖块的索引值（从 0 开始，可选）。只填 start 时返回从该索引到最后一个砖块的数据"},
+                    "end": {"type": "integer", "description": "终止砖块的索引值（不包含，可选）。只填 end 时返回第 0 个砖块到第 end-1 个砖块的数据"}
+                },
+                "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "remove_angledata",
+            "description": "删除 angleData（轨道角度数据）的指定片段。不填参数时删除所有砖块的 angleData；只填 start 时删除从该索引到末尾的砖块；只填 end 时删除从开头到 end-1 的砖块；填 start 和 end 时删除 [start, end) 范围的砖块",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "start": {"type": "integer", "description": "起始砖块的索引值（从 0 开始，可选）。不填则从第 0 个砖块开始删除"},
+                    "end": {"type": "integer", "description": "终止砖块的索引值（不包含，可选）。不填则删除到最后一个砖块"}
+                },
+                "required": []
+            }
+        }
     }
 ]
 
 
 class AssistantAgent:
     def __init__(self):
-        self.api_key = os.environ.get("DEEPSEEK_API_KEY", "")
+        self.api_key = self._load_api_key_from_config()
         self._init_client()
+
+    def _config_path(self):
+        return os.path.join(os.path.dirname(__file__), "config.yaml")
+
+    def _load_api_key_from_config(self) -> str:
+        path = self._config_path()
+        try:
+            if os.path.isfile(path):
+                with open(path, "r", encoding="utf-8") as f:
+                    for line in f:
+                        if line.startswith("deepseek_api_key:"):
+                            key = line.split(":", 1)[1].strip().strip("'\"").strip("'")
+                            if key:
+                                return key
+        except Exception:
+            pass
+        return os.environ.get("DEEPSEEK_API_KEY", "")
+
+    def _save_api_key_to_config(self, api_key: str):
+        path = self._config_path()
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(f'deepseek_api_key: "{api_key}"\n')
+            logger.info(f"API Key 已保存到 {path}")
+        except Exception as e:
+            logger.error(f"保存 API Key 到配置文件失败: {e}")
 
     def _init_client(self):
         if self.api_key:
@@ -381,10 +474,74 @@ class AssistantAgent:
     def set_api_key(self, api_key: str):
         self.api_key = api_key
         self._init_client()
+        self._save_api_key_to_config(api_key)
         return bool(self.api_key)
 
     def is_ready(self) -> bool:
         return self.client is not None
+
+    MAX_HISTORY_TOKENS = 8000
+
+    @staticmethod
+    def _estimate_tokens(text: str) -> int:
+        if not text:
+            return 0
+        return int(len(text) * 0.4) + 1
+
+    def _db_messages_to_api(self, db_messages, max_tokens=MAX_HISTORY_TOKENS):
+        """
+        将数据库消息转换为 OpenAI API 消息格式，并控制 Token 预算。
+        返回: list[dict] — API 格式的消息列表（按时间正序）
+        """
+        api_messages = []
+        for msg in db_messages:
+            role = msg.get("role")
+            content = msg.get("content")
+
+            if role == "system":
+                continue
+
+            if role == "user":
+                api_messages.append({"role": "user", "content": content or ""})
+
+            elif role == "assistant":
+                tc = msg.get("tool_calls")
+                if tc:
+                    api_tc = {
+                        "id": tc.get("tool_call_id", ""),
+                        "type": "function",
+                        "function": {
+                            "name": tc.get("function_name", ""),
+                            "arguments": json.dumps(tc.get("arguments", {}), ensure_ascii=False)
+                        }
+                    }
+                    api_messages.append({
+                        "role": "assistant",
+                        "content": None,
+                        "tool_calls": [api_tc]
+                    })
+                    api_messages.append({
+                        "role": "tool",
+                        "tool_call_id": tc.get("tool_call_id", ""),
+                        "content": json.dumps(tc.get("result", {}), ensure_ascii=False)
+                    })
+                else:
+                    api_messages.append({"role": "assistant", "content": content or ""})
+
+        if not api_messages:
+            return []
+
+        total_tokens = sum(self._estimate_tokens(json.dumps(m, ensure_ascii=False)) for m in api_messages)
+
+        while total_tokens > max_tokens and len(api_messages) > 4:
+            removed = api_messages.pop(0)
+            total_tokens -= self._estimate_tokens(json.dumps(removed, ensure_ascii=False))
+            if len(api_messages) > 0:
+                removed2 = api_messages.pop(0) if api_messages[0].get("role") == "tool" else None
+                if removed2:
+                    total_tokens -= self._estimate_tokens(json.dumps(removed2, ensure_ascii=False))
+
+        return api_messages
 
     def _execute_tool(self, tool_name, tool_args, level):
         undo = None
@@ -598,6 +755,27 @@ class AssistantAgent:
                     undo = {"method": "add_decoration_restore", "params": {"decoration": copy.deepcopy(removed)}, "original_tool": tool_name, "original_args": tool_args}
                     result = {"removed": True, "decoration": removed}
 
+            elif tool_name == "edit_angledata":
+                index = tool_args["index"]
+                part = tool_args["part"]
+                level.edit_angledata(index, part)
+                undo = {"method": "edit_angledata_undo", "params": {"index": index}, "original_tool": tool_name, "original_args": tool_args}
+                result = {"modified": True, "index": index, "part": part}
+
+            elif tool_name == "get_angledata":
+                start = tool_args.get("start")
+                end = tool_args.get("end")
+                data = level.get_angledata(start=start, end=end)
+                total = len(level.data.get("angleData", []))
+                result = {"count": len(data), "total": total, "start": start, "end": end, "data": data[:50], "truncated": len(data) > 50}
+
+            elif tool_name == "remove_angledata":
+                start = tool_args.get("start")
+                end = tool_args.get("end")
+                removed = level.remove_angledata(start=start, end=end)
+                undo = {"method": "remove_angledata_undo", "params": {"removed": copy.deepcopy(removed), "start": start, "end": end}, "original_tool": tool_name, "original_args": tool_args}
+                result = {"removed_count": len(removed), "start": start, "end": end}
+
             else:
                 result = {"error": f"未知工具: {tool_name}"}
 
@@ -694,6 +872,19 @@ class AssistantAgent:
                             insert_idx = idx
                             break
                 decos.insert(insert_idx, decoration) if insert_idx is not None else decos.append(decoration)
+            elif method == "remove_angledata_undo":
+                angle_data = level.data.setdefault("angleData", [])
+                removed = params.get("removed", [])
+                insert_pos = params.get("start", 0)
+                if insert_pos is None:
+                    insert_pos = 0
+                for i, item in enumerate(removed):
+                    angle_data.insert(insert_pos + i, item)
+            elif method == "edit_angledata_undo":
+                angle_data = level.data.get("angleData", [])
+                idx = params.get("index", 0)
+                if 0 <= idx < len(angle_data):
+                    angle_data.pop(idx)
             else:
                 logger.warning(f"未知的撤回方法: {method}")
                 return False
@@ -723,11 +914,15 @@ class AssistantAgent:
             f"- 总装饰物数: {len(level.data.get('decorations', []))}"
         )
 
+        db_history = database.get_recent_messages(session_id, 100)
+        history_msgs = self._db_messages_to_api(db_history, self.MAX_HISTORY_TOKENS)
+
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "system", "content": level_context},
-            {"role": "user", "content": user_message}
         ]
+        messages.extend(history_msgs)
+        messages.append({"role": "user", "content": user_message})
 
         all_messages_for_db = []
         all_messages_for_db.append({"role": "user", "content": user_message})
@@ -828,3 +1023,4 @@ class AssistantAgent:
             database.add_message(session_id, role, content, tool_calls_data)
 
         return final_reply, modified
+

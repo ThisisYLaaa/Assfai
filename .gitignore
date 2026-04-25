@@ -1,3 +1,4 @@
 chat_history.db
+config.yaml
 uploads/
-__pycache__/
+__pycache__

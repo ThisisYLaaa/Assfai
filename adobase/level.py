@@ -39,6 +39,57 @@ class ADOFAILevel:
             with open(filepath, 'w', encoding='utf-8') as f:
                 f.write(to_adofai_style_json(self.data))
 
+    def edit_angledata(self, index: int, part: list) -> None:
+        """
+        编辑关卡角度数据。
+        参数：
+            index (int): 新的轨道会插入到angleData的第index个位置上
+            part (list[float]): 插入的轨道数据
+        """
+        if index < 0: raise IndexError(f"索引 {index} 超出范围")
+        a = self.data["angleData"]
+        b = a[:index] + part + a[index:]
+        self.data["angleData"] = b
+
+    def get_angledata(self, start: int = None, end: int = None) -> list:
+        """
+        读取指定片段的angleData。
+        参数：
+            start (int, 可选): 起始砖块的索引值（从0开始）
+            end (int, 可选): 终止砖块的索引值（不包含）
+        返回：
+            - 不填参数：返回整个angleData
+            - 只填start：返回start到最后一个砖块
+            - 只填end：返回第0个砖块到第end-1个砖块
+            - 填start和end：返回start到end-1的砖块
+        """
+        angle_data = self.data.get('angleData', [])
+        if start is None and end is None:
+            return angle_data
+        if start is None:
+            return angle_data[:end]
+        if end is None:
+            return angle_data[start:]
+        return angle_data[start:end]
+
+    def remove_angledata(self, start: int = None, end: int = None) -> list:
+        """
+        删除指定片段的angleData。
+        参数：
+            start (int, 可选): 起始砖块的索引值（从0开始，默认0）
+            end (int, 可选): 终止砖块的索引值（不包含，默认删除到末尾）
+        返回：
+            被删除的轨道数据列表
+        """
+        angle_data = self.data.get('angleData', [])
+        s = start if start is not None else 0
+        e = end if end is not None else len(angle_data)
+        if s < 0 or e > len(angle_data) or s >= e:
+            raise IndexError(f"无效的删除范围: [{s}, {e})，angleData 长度为 {len(angle_data)}")
+        removed = angle_data[s:e]
+        self.data['angleData'] = angle_data[:s] + angle_data[e:]
+        return removed
+
     def get_level_info(self, *fields) -> dict:
         """
         获取关卡信息。
@@ -520,4 +571,6 @@ class ADOFAILevel:
             for idx in reversed(matched):
                 removed.append(decorations.pop(idx))
             removed.reverse()
-        return removed[0] if index is not None else removed 
+        return removed[0] if index is not None else removed
+
+    

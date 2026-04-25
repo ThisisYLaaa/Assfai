@@ -1,0 +1,11 @@
+# Track Settings
+
+## List of Settings
+
+<table data-full-width="false"><thead><tr><th align="center">Setting Name</th><th align="center">Type Validation</th><th align="center">Description</th></tr></thead><tbody><tr><td align="center">Track Color type</td><td align="center">Multiple Selection</td><td align="center">Track color distribution, from tile to tile up to color fusion like rainbows</td></tr><tr><td align="center">Track Color</td><td align="center">Hex code</td><td align="center">Color range value for the track tile color</td></tr><tr><td align="center">Track Style</td><td align="center">Multiple Selection</td><td align="center">Track color foundation, the material of tiles, such as neon and gems</td></tr><tr><td align="center">Track Texture</td><td align="center">Image File</td><td align="center">Image sheet texture to replace the tiles foundation's material </td></tr><tr><td align="center">Track Texture zoom</td><td align="center">Numerical</td><td align="center">Indicate how in-detail each texture material shows on the tile foundation</td></tr><tr><td align="center">Glow intesity</td><td align="center">Numerical</td><td align="center">Amount, in %, of glow each tile will show when hit</td></tr><tr><td align="center">Track appear animation</td><td align="center">Multiple Selection</td><td align="center">Animation that makes tiles appear in front of the track</td></tr><tr><td align="center">Beats before for animation</td><td align="center">Numerical</td><td align="center">How fast, in beats, for the animation to start ahead</td></tr><tr><td align="center">Track disappear animation</td><td align="center">Multiple Selection</td><td align="center">Animation that makes tiles disappear behind the track</td></tr><tr><td align="center">Beats after for animation</td><td align="center">Numerical</td><td align="center">How fast, in beats, for the animation to end behind</td></tr></tbody></table>
+
+<figure><img src="https://484108807-files.gitbook.io/~/files/v0/b/gitbook-x-prod.appspot.com/o/spaces%2Fipb5NkFjq0eBOIGewqlQ%2Fuploads%2Fw6DtOwJgZoCwEKo0Uia2%2Fimagem.png?alt=media&#x26;token=e0ec96fc-3338-4e5f-be11-b2b8fc1bd376" alt="" width="249"><figcaption><p>Editor - Track Settings Tab </p></figcaption></figure>
+
+
+---
+
